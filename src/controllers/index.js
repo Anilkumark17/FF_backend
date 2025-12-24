@@ -6,7 +6,10 @@ const {
   editProject,
   deleteProject,
 } = require("./dashboard/project.controller");
-const currentProjectDetails = require("./ProjectPage/project.controller");
+const {
+  currentProjectDetails,
+  sendInvite,
+} = require("./ProjectPage/project.controller");
 
 module.exports = {
   loginController,
@@ -15,5 +18,6 @@ module.exports = {
   fetchAllProjects,
   editProject,
   deleteProject,
-  currentProjectDetails,
+  currentProjectDetails: currentProjectDetails,
+  sendInvite: sendInvite,
 };

@@ -27,10 +27,10 @@ const createProject = async (req, res) => {
       .from("projects")
       .insert({
         owner_id: userId,
-        name,
-        description,
-        client_name,
-        deadline,
+        description: description,
+        name: name,
+        deadline: deadline,
+        client_name: client_name,
       })
       .select()
       .single();
