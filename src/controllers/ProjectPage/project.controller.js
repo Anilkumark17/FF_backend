@@ -2,6 +2,7 @@ const supabase = require("../../config/db");
 
 /**
  * GET CURRENT PROJECT DETAILS
+ * Allows project owner AND invited members to view details
  */
 const currentProjectDetails = async (req, res) => {
   try {
@@ -15,23 +16,53 @@ const currentProjectDetails = async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase
+    // First, get the project details
+    const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, name, description, client_name, deadline")
+      .select("id, name, description, client_name, deadline, owner_id")
       .eq("id", projectId)
-      .eq("owner_id", userId)
       .single();
 
-    if (error || !data) {
+    if (projectError || !project) {
       return res.status(404).json({
         success: false,
-        message: "Project not found or unauthorized",
+        message: "Project not found",
       });
     }
 
+    // Check if user is the owner
+    const isOwner = project.owner_id === userId;
+
+    // If not owner, check if user is an invited member
+    let isMember = false;
+    if (!isOwner) {
+      const { data: memberData, error: memberError } = await supabase
+        .from("project_members")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("user_id", userId)
+        .single();
+
+      isMember = !memberError && memberData;
+    }
+
+    // User must be either owner or member to access
+    if (!isOwner && !isMember) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have access to this project",
+      });
+    }
+
+    // Remove owner_id from response and add access info
+    const { owner_id, ...projectData } = project;
+    
     return res.status(200).json({
       success: true,
-      data,
+      data: {
+        ...projectData,
+        isOwner, // Frontend can use this to show/hide features
+      },
     });
   } catch (err) {
     console.error("currentProjectDetails error:", err);
@@ -44,6 +75,7 @@ const currentProjectDetails = async (req, res) => {
 
 /**
  * SEND INVITE (DIRECT ADD, NO ACCEPTANCE)
+ * Only project owner can send invites
  */
 const sendInvite = async (req, res) => {
   try {
@@ -65,6 +97,28 @@ const sendInvite = async (req, res) => {
       });
     }
 
+    // Check if user is the project owner
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("owner_id")
+      .eq("id", project_id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    // Only owner can invite
+    if (project.owner_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Only project owner can invite members",
+      });
+    }
+
     // 1. Find user by email
     const { data: member, error: memberError } = await supabase
       .from("user_profiles")
@@ -76,6 +130,21 @@ const sendInvite = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "User not found",
+      });
+    }
+
+    // Check if already a member
+    const { data: existingMember } = await supabase
+      .from("project_members")
+      .select("id")
+      .eq("project_id", project_id)
+      .eq("user_id", member.id)
+      .single();
+
+    if (existingMember) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already a member of this project",
       });
     }
 
@@ -102,6 +171,7 @@ const sendInvite = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: projectInvite,
+      message: "User added to project successfully",
     });
   } catch (error) {
     console.error("sendInvite error:", error);
