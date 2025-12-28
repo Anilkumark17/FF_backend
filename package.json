@@ -21,6 +21,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
     "bcrypt": "^6.0.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.0.2",
+    "uploadthing": "^7.7.4"
   }
 }

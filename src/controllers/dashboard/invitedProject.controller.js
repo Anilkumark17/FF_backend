@@ -16,7 +16,8 @@ const invitedProject = async (req, res) => {
           id,
           name,
           description,
-          deadline
+          deadline,
+          client_name
         )
       `)
       .eq("user_id", memberId);
@@ -26,9 +27,21 @@ const invitedProject = async (req, res) => {
       return res.status(500).json({ message: "Query failed" });
     }
 
+    // Transform data to make it easier for frontend
+    const transformedData = data.map(item => ({
+      project_id: item.project_id,
+      id: item.projects?.id,
+      name: item.projects?.name,
+      description: item.projects?.description,
+      deadline: item.projects?.deadline,
+      client_name: item.projects?.client_name,
+      // Also keep nested structure for compatibility
+      projects: item.projects
+    }));
+
     return res.status(200).json({
       success: true,
-      data,
+      data: transformedData,
     });
   } catch (error) {
     console.error("invited project error", error);
