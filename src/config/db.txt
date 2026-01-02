@@ -1,0 +1,104 @@
+-- Enable UUID generation
+create extension if not exists "pgcrypto";
+
+--------------------------------------------------
+-- 0. User Profiles (App-level user details)
+--------------------------------------------------
+create table user_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  email text unique,
+  avatar_url text,
+  created_at timestamp with time zone default now()
+);
+
+--------------------------------------------------
+-- 1. Projects
+--------------------------------------------------
+create table projects (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  description text,
+  client_name text,
+  deadline date,
+  created_at timestamp with time zone default now()
+);
+
+--------------------------------------------------
+-- 2. Project Members (Contributors)
+--------------------------------------------------
+create table project_members (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references projects(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  role text check (role in ('owner', 'editor', 'viewer')) default 'editor',
+  created_at timestamp with time zone default now(),
+  unique (project_id, user_id)
+);
+
+--------------------------------------------------
+-- 3. Assets (PRD + Other Resources)
+--------------------------------------------------
+create table assets (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references projects(id) on delete cascade,
+  type text check (type in ('prd', 'image', 'url', 'audio', 'video', 'pdf')) not null,
+  title text,
+  file_url text not null,
+  is_fixed boolean default false,
+  created_by uuid references auth.users(id),
+  created_at timestamp with time zone default now()
+);
+
+--------------------------------------------------
+-- 4. Final Outputs (Client-facing)
+--------------------------------------------------
+create table final_outputs (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references projects(id) on delete cascade,
+  type text check (type in ('link', 'text', 'video', 'image')) not null,
+  title text not null,
+  description text,
+  source_url text,
+  created_by uuid references auth.users(id),
+  created_at timestamp with time zone default now()
+);
+
+--------------------------------------------------
+-- 5. Final Output Comments (Timestamp supported)
+--------------------------------------------------
+create table final_comments (
+  id uuid primary key default gen_random_uuid(),
+  final_output_id uuid references final_outputs(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  comment text not null,
+  timestamp_seconds int,
+  created_at timestamp with time zone default now()
+);
+
+--------------------------------------------------
+-- 6. Comment Summaries (Immutable)
+--------------------------------------------------
+create table comment_summaries (
+  id uuid primary key default gen_random_uuid(),
+  final_output_id uuid references final_outputs(id) on delete cascade,
+  summary text not null,
+  generated_by uuid references auth.users(id),
+  created_at timestamp with time zone default now()
+);
+
+--------------------------------------------------
+-- 7. Track Tasks (Todo / Doing / Done)
+--------------------------------------------------
+create table track_tasks (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references projects(id) on delete cascade,
+  summary_id uuid references comment_summaries(id),
+  title text not null,
+  description text,
+  status text check (status in ('todo', 'doing', 'done')) default 'todo',
+  due_date date,
+  created_by uuid references auth.users(id),
+  created_at timestamp with time zone default now()
+);

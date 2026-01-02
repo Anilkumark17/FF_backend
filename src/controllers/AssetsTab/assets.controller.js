@@ -10,6 +10,7 @@ const utapi = new UTApi({ token: uploadthingToken });
 /**
  * Normalizes MIME type to simple category for database check constraint
  */
+
 const normalizeAssetType = (mimetype) => {
   if (mimetype.startsWith("image/")) return "image";
   if (mimetype.startsWith("video/")) return "video";
